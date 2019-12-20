@@ -1,7 +1,10 @@
 # gevent
 golang event hubs publishing and subscriptions
 
-=====Example=====
+=====
+Example
+=====
+
     import "time"
 
     import "fmt"
@@ -19,7 +22,8 @@ golang event hubs publishing and subscriptions
 
     channel.Subscribe("user_created", func(e *gevent.Event) {
 
-        log.Printf("1 event: %s, data: %s, creation: %d", e.Name, e.Data, e.CreationDate)
+        log.Printf("1 event: %s, data: %s, creation: %d",
+        e.Name, e.Data, e.CreationDate)
 
         e.Map(func(data interface{}) interface{} {
 
@@ -28,15 +32,18 @@ golang event hubs publishing and subscriptions
         })
 
         e.Next()
+
     }, 9, 1).Subscribe("user_created", func(e *gevent.Event) {
 
-        log.Printf("2 event: %s, data: %s, creation: %d", e.Name, e.Data, e.CreationDate)
+        log.Printf("2 event: %s, data: %s, creation: %d",
+        e.Name, e.Data, e.CreationDate)
 
         e.Next()
 
     }, 1, 1).Subscribe("user_created", func(e *gevent.Event) {
 
-        log.Printf("3 event: %s, data: %s, creation: %d", e.Name, e.Data, e.CreationDate)
+        log.Printf("3 event: %s, data: %s, creation: %d",
+        e.Name, e.Data, e.CreationDate)
 
         e.Next()
 
@@ -44,7 +51,8 @@ golang event hubs publishing and subscriptions
 
     channel.Subscribe("article_deleted", func(e *gevent.Event) {
 
-        log.Printf("4 event: %s, data: %s, creation: %d", e.Name, e.Data, e.CreationDate)
+        log.Printf("4 event: %s, data: %s, creation: %d",
+        e.Name, e.Data, e.CreationDate)
 
         e.Next()
 
@@ -52,7 +60,8 @@ golang event hubs publishing and subscriptions
 
     channel.Subscribe("city_changed", func(e *gevent.Event) {
 
-        log.Printf("5 event: %s, data: %s, creation: %d", e.Name, e.Data, e.CreationDate)
+        log.Printf("5 event: %s, data: %s, creation: %d",
+        e.Name, e.Data, e.CreationDate)
 
         e.Next()
 
@@ -60,7 +69,8 @@ golang event hubs publishing and subscriptions
 
     channel.Subscribe("system_notify", func(e *gevent.Event) {
 
-        log.Printf("6 event: %s, data: %s, creation: %d", e.Name, e.Data, e.CreationDate)
+        log.Printf("6 event: %s, data: %s, creation: %d",
+        e.Name, e.Data, e.CreationDate)
 
         e.Next()
 
@@ -76,7 +86,9 @@ golang event hubs publishing and subscriptions
 
     }
 
-    ===== Run Result Response =====
+-----
+Run Result Response
+-----
 
     6 event: system_notify, data: broadcast, creation: 1576857124739584000
 
