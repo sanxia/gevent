@@ -1,9 +1,9 @@
 # gevent
 golang event hubs publishing and subscriptions
 
-=====
 Example
 =====
+
 
     import "time"
 
@@ -80,13 +80,14 @@ Example
 
     for i := 0; i < 2; i++ {
 
-        channel.Publish("user_created", fmt.Sprintf("%s", "hello")).Publish("city_changed", fmt.Sprintf("%s", "beijing"))
+        channel.Publish("user_created", fmt.Sprintf("%s", "hello")).
+        Publish("city_changed", fmt.Sprintf("%s", "beijing"))
 
         time.Sleep(600 * time.Millisecond)
 
     }
 
------
+
 Run Result Response
 -----
 
