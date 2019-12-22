@@ -1,45 +1,60 @@
 package gevent
 
+import (
+	"time"
+)
+
 /* ================================================================================
  * gevent
  * qq group: 582452342
  * email   : 2091938785@qq.com
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
-type EventHandler func(*Event)
 type (
-	EventList []*Event
-	Event     struct {
-		ChannelName  string      //channel name
-		Name         string      //event name
-		Data         interface{} //event data
-		IsBroadcast  bool        //it is broadcast
-		isCompleted  bool        //it is complete
-		CreationDate int64       //event creation time
+	IStore interface {
+		Get() *Event
+		Put(*Event)
+	}
+
+	defaultStore struct {
+		eventChan chan *Event //event buffer channel
+		backCount int         //maximum backup buffer
 	}
 )
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * mapping event data
+ * initialize the default store
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Event) Map(mapFunc func(data interface{}) interface{}) {
-	if !s.IsBroadcast {
-		s.Data = mapFunc(s.Data)
+func NewDefaultStore(backCount int) IStore {
+	return &defaultStore{
+		eventChan: make(chan *Event, backCount),
+		backCount: backCount,
 	}
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * the next subscriber of the event continues to process
+ * get event from store
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Event) Next() {
-	if s.isCompleted {
-		return
+func (s *defaultStore) Get() *Event {
+	var event *Event
+
+	if s.backCount == 1 {
+		event = <-s.eventChan
+	} else {
+		select {
+		case eventSource := <-s.eventChan:
+			event = eventSource
+		default:
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
+
+	return event
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * event Completed
+ * set event to store
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Event) Completed() {
-	s.isCompleted = true
+func (s *defaultStore) Put(event *Event) {
+	s.eventChan <- event
 }

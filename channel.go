@@ -13,28 +13,61 @@ import (
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
+	IChannel interface {
+		Broadcast(data interface{}) IChannel
+		Publish(eventName string, data interface{}) IChannel
+		Subscribe(eventName string, eventHandler EventHandler, args ...int) IChannel
+		Unsubscribe(eventNames ...string) IChannel
+	}
+
 	Channel struct {
 		Name        string                    //Channel name
-		eventChan   chan *Event               //event buffer channel
+		store       IStore                    //event store
 		subscribers map[string]SubscriberList //subscriber Collection
 		mu          sync.Mutex                //synchronous
-		isRunning   bool                      //is run
 	}
 )
+
+func NewChannel(channelName string, store IStore) IChannel {
+	channel := &Channel{
+		Name:        channelName,
+		store:       store,
+		subscribers: make(map[string]SubscriberList, 0),
+	}
+
+	go channel.eventLoop()
+
+	return channel
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ * broadcast events
+ * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+func (s *Channel) Broadcast(data interface{}) IChannel {
+	event := &Event{
+		ChannelName:  s.Name,
+		Data:         data,
+		IsBroadcast:  true,
+		CreationDate: time.Now().UnixNano(),
+	}
+
+	go s.dispatchEvent(event)
+
+	return s
+}
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * publishing events
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Channel) Publish(eventName string, data interface{}) *Channel {
+func (s *Channel) Publish(eventName string, data interface{}) IChannel {
 	event := &Event{
+		ChannelName:  s.Name,
 		Name:         eventName,
 		Data:         data,
 		CreationDate: time.Now().UnixNano(),
 	}
 
-	go func() {
-		s.dispatchEvent(event)
-	}()
+	go s.dispatchEvent(event)
 
 	return s
 }
@@ -42,7 +75,7 @@ func (s *Channel) Publish(eventName string, data interface{}) *Channel {
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * subscribe to events
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ...int) *Channel {
+func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ...int) IChannel {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -80,7 +113,7 @@ func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ..
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * unsubscribe events
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Channel) Unsubscribe(eventNames ...string) *Channel {
+func (s *Channel) Unsubscribe(eventNames ...string) IChannel {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -100,12 +133,17 @@ func (s *Channel) Unsubscribe(eventNames ...string) *Channel {
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * dispatch event
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *Channel) dispatchEvent(event *Event) *Channel {
-	if _, isOk := s.subscribers[event.Name]; isOk {
-		s.eventChan <- event
-	}
+func (s *Channel) dispatchEvent(event *Event) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	return s
+	if event.IsBroadcast {
+		s.store.Put(event)
+	} else {
+		if _, isOk := s.subscribers[event.Name]; isOk {
+			s.store.Put(event)
+		}
+	}
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -113,10 +151,11 @@ func (s *Channel) dispatchEvent(event *Event) *Channel {
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) eventLoop() {
 	for {
-		select {
-		case event := <-s.eventChan:
+		if event := s.store.Get(); event != nil {
 			for eventName, subscribers := range s.subscribers {
 				if eventName == event.Name {
+					go s.eventHandler(event, subscribers)
+				} else if event.IsBroadcast {
 					go s.eventHandler(event, subscribers)
 				}
 			}
@@ -128,14 +167,13 @@ func (s *Channel) eventLoop() {
  * event handling
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) eventHandler(event *Event, subscribers SubscriberList) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for _, subscriber := range subscribers {
 		if event.CreationDate > subscriber.creationDate {
 
-			s.mu.Lock()
-
 			subscriber.Counts[event.Name] += 1
-
-			s.mu.Unlock()
 
 			if subscriber.Repeat == 0 || subscriber.Counts[event.Name] <= subscriber.Repeat {
 				subscriber.handler(event)
@@ -144,7 +182,6 @@ func (s *Channel) eventHandler(event *Event, subscribers SubscriberList) {
 					break
 				}
 			}
-
 		}
 	}
 }

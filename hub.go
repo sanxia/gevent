@@ -2,7 +2,6 @@ package gevent
 
 import (
 	"sync"
-	"time"
 )
 
 /* ================================================================================
@@ -12,46 +11,48 @@ import (
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
+	IEventHub interface {
+		GetChannel(channelName string, args ...IStore) IChannel
+		Broadcast(data interface{}) IEventHub
+	}
+
 	eventHub struct {
-		channels map[string]*Channel //channel collection
-		maxCount int                 //maximum backup buffer
-		mu       sync.Mutex          //synchronous
+		channels  map[string]IChannel //channel collection
+		backCount int                 //maximum backup buffer
+		mu        sync.Mutex          //synchronous
 	}
 )
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * initialize event hub
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func NewEventHub(maxCount int) *eventHub {
-	dispatcher := &eventHub{
-		channels: make(map[string]*Channel, 0),
-		maxCount: maxCount,
+func NewEventHub(backCount int) IEventHub {
+	eventDispatcher := &eventHub{
+		channels:  make(map[string]IChannel, 0),
+		backCount: backCount,
 	}
 
-	return dispatcher
+	return eventDispatcher
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * get channels
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *eventHub) GetChannel(channelName string) *Channel {
+func (s *eventHub) GetChannel(channelName string, args ...IStore) IChannel {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	channel, isOk := s.channels[channelName]
 	if !isOk {
-		channel = &Channel{
-			Name:        channelName,
-			eventChan:   make(chan *Event, s.maxCount),
-			subscribers: make(map[string]SubscriberList, 0),
+		var store IStore
+		if len(args) > 0 {
+			store = args[0]
+		} else {
+			store = NewDefaultStore(s.backCount)
 		}
 
+		channel = NewChannel(channelName, store)
 		s.channels[channelName] = channel
-	}
-
-	if !channel.isRunning {
-		channel.isRunning = true
-		go channel.eventLoop()
 	}
 
 	return channel
@@ -60,17 +61,9 @@ func (s *eventHub) GetChannel(channelName string) *Channel {
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * broadcast events
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *eventHub) Broadcast(eventName string, data interface{}) *eventHub {
+func (s *eventHub) Broadcast(data interface{}) IEventHub {
 	for _, channel := range s.channels {
-		go func(channel *Channel) {
-			event := &Event{
-				Name:         eventName,
-				Data:         data,
-				IsBroadcast:  true,
-				CreationDate: time.Now().UnixNano(),
-			}
-			channel.dispatchEvent(event)
-		}(channel)
+		channel.Broadcast(data)
 	}
 
 	return s
