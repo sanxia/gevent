@@ -1,9 +1,5 @@
 package gevent
 
-import (
-	"time"
-)
-
 /* ================================================================================
  * gevent
  * qq group: 582452342
@@ -45,7 +41,6 @@ func (s *defaultStore) Get() *Event {
 		case eventSource := <-s.eventChan:
 			event = eventSource
 		default:
-			time.Sleep(10 * time.Millisecond)
 		}
 	}
 

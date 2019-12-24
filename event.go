@@ -10,12 +10,12 @@ type EventHandler func(*Event)
 type (
 	EventList []*Event
 	Event     struct {
-		ChannelName  string      //channel name
-		Name         string      //event name
-		Data         interface{} //event data
-		IsBroadcast  bool        //it is broadcast
-		isCompleted  bool        //it is complete
-		CreationDate int64       //event creation time
+		ChannelName  string      `json:"channel_name"`  //channel name
+		Name         string      `json:"name"`          //event name
+		Data         interface{} `json:"data"`          //event data
+		IsBroadcast  bool        `json:"is_broadcast"`  //it is broadcast
+		isCompleted  bool        `json:"_"`             //it is complete
+		CreationDate int64       `json:"creation_date"` //event creation time
 	}
 )
 

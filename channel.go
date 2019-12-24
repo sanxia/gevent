@@ -1,6 +1,7 @@
 package gevent
 
 import (
+	"log"
 	"sort"
 	"sync"
 	"time"
@@ -21,18 +22,20 @@ type (
 	}
 
 	Channel struct {
-		Name        string                    //Channel name
-		store       IStore                    //event store
-		subscribers map[string]SubscriberList //subscriber Collection
-		mu          sync.Mutex                //synchronous
+		Name        string   //Channel name
+		store       IStore   //event store
+		subscribers sync.Map //subscriber map Collection
 	}
 )
 
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ * channel initialization
+ * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func NewChannel(channelName string, store IStore) IChannel {
 	channel := &Channel{
 		Name:        channelName,
 		store:       store,
-		subscribers: make(map[string]SubscriberList, 0),
+		subscribers: sync.Map{},
 	}
 
 	go channel.eventLoop()
@@ -46,6 +49,7 @@ func NewChannel(channelName string, store IStore) IChannel {
 func (s *Channel) Broadcast(data interface{}) IChannel {
 	event := &Event{
 		ChannelName:  s.Name,
+		Name:         "__broadcast__",
 		Data:         data,
 		IsBroadcast:  true,
 		CreationDate: time.Now().UnixNano(),
@@ -76,12 +80,12 @@ func (s *Channel) Publish(eventName string, data interface{}) IChannel {
  * subscribe to events
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ...int) IChannel {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	subscribers := make(SubscriberList, 0)
 
-	subscribers, isOk := s.subscribers[eventName]
-	if !isOk {
-		subscribers = make(SubscriberList, 0)
+	if datas, isOk := s.subscribers.Load(eventName); isOk {
+		if datas, isOk := datas.(SubscriberList); isOk {
+			subscribers = datas
+		}
 	}
 
 	//优先级
@@ -97,7 +101,7 @@ func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ..
 	subscribers = append(subscribers, &Subscriber{
 		Priority:     priority,
 		Repeat:       repeat,
-		Counts:       make(map[string]int, 0),
+		Counts:       sync.Map{},
 		handler:      eventHandler,
 		creationDate: time.Now().UnixNano(),
 	})
@@ -105,7 +109,7 @@ func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ..
 	//优先级从高到低降序
 	sort.Sort(sort.Reverse(subscribers))
 
-	s.subscribers[eventName] = subscribers
+	s.subscribers.Store(eventName, subscribers)
 
 	return s
 }
@@ -114,16 +118,20 @@ func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ..
  * unsubscribe events
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) Unsubscribe(eventNames ...string) IChannel {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if len(eventNames) == 0 {
-		s.subscribers = make(map[string]SubscriberList)
+		s.subscribers.Range(func(eventName, eventValue interface{}) bool {
+			s.subscribers.Delete(eventName)
+			return true
+		})
 	} else {
-		for _, eventName := range eventNames {
-			if _, isOk := s.subscribers[eventName]; isOk {
-				s.subscribers[eventName] = make(SubscriberList, 0)
-			}
+		for eventName := range eventNames {
+			s.subscribers.Range(func(key, value interface{}) bool {
+				if eventName == key {
+					s.subscribers.Delete(eventName)
+					return false
+				}
+				return true
+			})
 		}
 	}
 
@@ -134,13 +142,10 @@ func (s *Channel) Unsubscribe(eventNames ...string) IChannel {
  * dispatch event
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) dispatchEvent(event *Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if event.IsBroadcast {
 		s.store.Put(event)
 	} else {
-		if _, isOk := s.subscribers[event.Name]; isOk {
+		if _, isOk := s.subscribers.Load(event.Name); isOk {
 			s.store.Put(event)
 		}
 	}
@@ -152,31 +157,45 @@ func (s *Channel) dispatchEvent(event *Event) {
 func (s *Channel) eventLoop() {
 	for {
 		if event := s.store.Get(); event != nil {
-			for eventName, subscribers := range s.subscribers {
-				if eventName == event.Name {
-					go s.eventHandler(event, subscribers)
-				} else if event.IsBroadcast {
-					go s.eventHandler(event, subscribers)
+			log.Printf("eventLoop s.store.Get event.Name: %s", event.Name)
+
+			s.subscribers.Range(func(eventName, eventValue interface{}) bool {
+
+				if subscribers, isOk := eventValue.(SubscriberList); isOk {
+					if eventName == event.Name {
+						go s.eventHandler(event, subscribers)
+					} else if event.IsBroadcast {
+						go s.eventHandler(event, subscribers)
+					}
 				}
-			}
+
+				return true
+			})
+		} else {
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * event handling
+ * subscriber handler is sync notify
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) eventHandler(event *Event, subscribers SubscriberList) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	for _, subscriber := range subscribers {
 		if event.CreationDate > subscriber.creationDate {
 
-			subscriber.Counts[event.Name] += 1
+			count := 0
+			if value, isOk := subscriber.Counts.Load(event.Name); isOk {
+				count = value.(int)
+			}
 
-			if subscriber.Repeat == 0 || subscriber.Counts[event.Name] <= subscriber.Repeat {
+			if subscriber.Repeat == 0 || subscriber.Repeat > count {
 				subscriber.handler(event)
+
+				count += 1
+
+				subscriber.Counts.Store(event.Name, count)
 
 				if event.isCompleted {
 					break

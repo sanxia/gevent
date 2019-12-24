@@ -1,5 +1,9 @@
 package gevent
 
+import (
+	"sync"
+)
+
 /* ================================================================================
  * gevent
  * qq group: 582452342
@@ -9,11 +13,11 @@ package gevent
 type (
 	SubscriberList []*Subscriber
 	Subscriber     struct {
-		Priority     int            //subscription priority
-		Repeat       int            //Number of triggers（0:Infinite | 1:once | ...）
-		Counts       map[string]int //event counter
-		handler      EventHandler   //event processor
-		creationDate int64          //subscription time (nanoseconds)
+		Priority     int          //subscription priority
+		Repeat       int          //Number of triggers（0:Infinite | 1:once | ...）
+		Counts       sync.Map     //event counter
+		handler      EventHandler //event processor
+		creationDate int64        //subscription time (nanoseconds)
 	}
 )
 
