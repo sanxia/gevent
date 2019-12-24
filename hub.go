@@ -23,10 +23,26 @@ type (
 	}
 )
 
+var (
+	hub     IEventHub
+	hubOnce sync.Once
+)
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ * get event hub instance
+ * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+func GetEventHub(backCount int) IEventHub {
+	hubOnce.Do(func() {
+		hub = newEventHub(backCount)
+	})
+
+	return hub
+}
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * initialize event hub
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func NewEventHub(backCount int) IEventHub {
+func newEventHub(backCount int) IEventHub {
 	eventDispatcher := &eventHub{
 		channels:  make(map[string]IChannel, 0),
 		backCount: backCount,

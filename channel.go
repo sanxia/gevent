@@ -1,7 +1,6 @@
 package gevent
 
 import (
-	"log"
 	"sort"
 	"sync"
 	"time"
@@ -157,8 +156,6 @@ func (s *Channel) dispatchEvent(event *Event) {
 func (s *Channel) eventLoop() {
 	for {
 		if event := s.store.Get(); event != nil {
-			log.Printf("eventLoop s.store.Get event.Name: %s", event.Name)
-
 			s.subscribers.Range(func(eventName, eventValue interface{}) bool {
 
 				if subscribers, isOk := eventValue.(SubscriberList); isOk {
