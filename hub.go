@@ -11,11 +11,6 @@ import (
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
-	IPublishSubscribe interface {
-		Subscribe(ISubscriberHandler, ...int) IPublishSubscribe
-		Publish(IEventSource) IPublishSubscribe
-	}
-
 	IEventHub interface {
 		GetChannel(channelName string, args ...ITransport) IChannel
 		Broadcast(data interface{}) IEventHub

@@ -169,7 +169,7 @@ func (s *Channel) eventLoop() {
 				return true
 			})
 		} else {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 }

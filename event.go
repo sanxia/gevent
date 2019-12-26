@@ -7,6 +7,11 @@ package gevent
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
+	IEvent interface {
+		Subscribe(ISubscriberHandler, ...int) IEvent
+		Publish(IEventSource) IEvent
+	}
+
 	EventHandler func(*Event)
 
 	EventList []*Event
