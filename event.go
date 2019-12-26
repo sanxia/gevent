@@ -7,12 +7,6 @@ package gevent
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
-	IEventSource interface {
-		GetChannelName() string
-		GetEventName() string
-		GetData() interface{}
-	}
-
 	EventHandler func(*Event)
 
 	EventList []*Event
