@@ -11,15 +11,19 @@ import (
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
+	IPublishSubscribe interface {
+		Subscribe(ISubscriberHandler, ...int) IPublishSubscribe
+		Publish(IEventSource) IPublishSubscribe
+	}
+
 	IEventHub interface {
-		GetChannel(channelName string, args ...IStore) IChannel
+		GetChannel(channelName string, args ...ITransport) IChannel
 		Broadcast(data interface{}) IEventHub
 	}
 
 	eventHub struct {
-		channels  map[string]IChannel //channel collection
-		backCount int                 //maximum backup buffer
-		mu        sync.Mutex          //synchronous
+		channels map[string]IChannel //channel collection
+		mu       sync.Mutex          //synchronous
 	}
 )
 
@@ -31,43 +35,33 @@ var (
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * get event hub instance
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func GetEventHub(backCount int) IEventHub {
+func GetEventHub() IEventHub {
 	hubOnce.Do(func() {
-		hub = newEventHub(backCount)
+		hub = &eventHub{
+			channels: make(map[string]IChannel, 0),
+		}
 	})
 
 	return hub
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * initialize event hub
- * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func newEventHub(backCount int) IEventHub {
-	eventDispatcher := &eventHub{
-		channels:  make(map[string]IChannel, 0),
-		backCount: backCount,
-	}
-
-	return eventDispatcher
-}
-
-/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * get channels
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *eventHub) GetChannel(channelName string, args ...IStore) IChannel {
+func (s *eventHub) GetChannel(channelName string, args ...ITransport) IChannel {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	channel, isOk := s.channels[channelName]
 	if !isOk {
-		var store IStore
+		var transport ITransport
 		if len(args) > 0 {
-			store = args[0]
+			transport = args[0]
 		} else {
-			store = NewDefaultStore(s.backCount)
+			transport = NewDefaultTransport(1024)
 		}
 
-		channel = NewChannel(channelName, store)
+		channel = NewChannel(channelName, transport)
 		s.channels[channelName] = channel
 	}
 

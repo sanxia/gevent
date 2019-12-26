@@ -21,19 +21,19 @@ type (
 	}
 
 	Channel struct {
-		Name        string   //Channel name
-		store       IStore   //event store
-		subscribers sync.Map //subscriber map Collection
+		Name        string     //Channel name
+		transport   ITransport //event transport
+		subscribers sync.Map   //subscriber map Collection
 	}
 )
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * channel initialization
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func NewChannel(channelName string, store IStore) IChannel {
+func NewChannel(channelName string, transport ITransport) IChannel {
 	channel := &Channel{
 		Name:        channelName,
-		store:       store,
+		transport:   transport,
 		subscribers: sync.Map{},
 	}
 
@@ -142,10 +142,10 @@ func (s *Channel) Unsubscribe(eventNames ...string) IChannel {
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) dispatchEvent(event *Event) {
 	if event.IsBroadcast {
-		s.store.Put(event)
+		s.transport.Store(event)
 	} else {
 		if _, isOk := s.subscribers.Load(event.Name); isOk {
-			s.store.Put(event)
+			s.transport.Store(event)
 		}
 	}
 }
@@ -155,7 +155,7 @@ func (s *Channel) dispatchEvent(event *Event) {
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) eventLoop() {
 	for {
-		if event := s.store.Get(); event != nil {
+		if event := s.transport.Load(); event != nil {
 			s.subscribers.Range(func(eventName, eventValue interface{}) bool {
 
 				if subscribers, isOk := eventValue.(SubscriberList); isOk {

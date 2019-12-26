@@ -7,31 +7,31 @@ package gevent
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
-	IStore interface {
-		Get() *Event
-		Put(*Event)
+	ITransport interface {
+		Load() *Event
+		Store(*Event)
 	}
 
-	defaultStore struct {
+	defaultTransport struct {
 		eventChan chan *Event //event buffer channel
 		backCount int         //maximum backup buffer
 	}
 )
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * initialize the default store
+ * initialize the default transport
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func NewDefaultStore(backCount int) IStore {
-	return &defaultStore{
+func NewDefaultTransport(backCount int) ITransport {
+	return &defaultTransport{
 		eventChan: make(chan *Event, backCount),
 		backCount: backCount,
 	}
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * get event from store
+ * get event data from transport
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *defaultStore) Get() *Event {
+func (s *defaultTransport) Load() *Event {
 	var event *Event
 
 	if s.backCount == 1 {
@@ -48,8 +48,8 @@ func (s *defaultStore) Get() *Event {
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * set event to store
+ * set event data to transport
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *defaultStore) Put(event *Event) {
+func (s *defaultTransport) Store(event *Event) {
 	s.eventChan <- event
 }

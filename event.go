@@ -6,8 +6,15 @@ package gevent
  * email   : 2091938785@qq.com
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
-type EventHandler func(*Event)
 type (
+	IEventSource interface {
+		GetChannelName() string
+		GetEventName() string
+		GetData() interface{}
+	}
+
+	EventHandler func(*Event)
+
 	EventList []*Event
 	Event     struct {
 		ChannelName  string      `json:"channel_name"`  //channel name

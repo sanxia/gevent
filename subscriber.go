@@ -11,6 +11,12 @@ import (
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
+	ISubscriberHandler interface {
+		GetChannelName() string
+		GetEventName() string
+		Handler(*Event)
+	}
+
 	SubscriberList []*Subscriber
 	Subscriber     struct {
 		Priority     int          //subscription priority
