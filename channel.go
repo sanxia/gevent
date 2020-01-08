@@ -157,7 +157,6 @@ func (s *Channel) eventLoop() {
 	for {
 		if event := s.transport.Load(); event != nil {
 			s.subscribers.Range(func(eventName, eventValue interface{}) bool {
-
 				if subscribers, isOk := eventValue.(SubscriberList); isOk {
 					if eventName == event.Name {
 						go s.eventHandler(event, subscribers)
@@ -169,7 +168,7 @@ func (s *Channel) eventLoop() {
 				return true
 			})
 		} else {
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
 }
