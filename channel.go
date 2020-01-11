@@ -21,7 +21,7 @@ type (
 	}
 
 	Channel struct {
-		Name        string     //Channel name
+		Name        string     //channel name
 		transport   ITransport //event transport
 		subscribers sync.Map   //subscriber map Collection
 	}

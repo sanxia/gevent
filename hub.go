@@ -12,7 +12,8 @@ import (
  * ================================================================================ */
 type (
 	IEventHub interface {
-		GetChannel(channelName string, args ...ITransport) IChannel
+		RegisterChannel(channels ...IChannel) IEventHub
+		GetChannel(channelName string) IChannel
 		Broadcast(data interface{}) IEventHub
 	}
 
@@ -41,26 +42,35 @@ func GetEventHub() IEventHub {
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * get channels
+ * register channel
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *eventHub) GetChannel(channelName string, args ...ITransport) IChannel {
+func (s *eventHub) RegisterChannel(channels ...IChannel) IEventHub {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	channel, isOk := s.channels[channelName]
-	if !isOk {
-		var transport ITransport
-		if len(args) > 0 {
-			transport = args[0]
-		} else {
-			transport = NewDefaultTransport(1024)
+	for _, channel := range channels {
+		if currentChannel, isOk := channel.(*Channel); isOk {
+			if _, isExists := s.channels[currentChannel.Name]; !isExists {
+				s.channels[currentChannel.Name] = channel
+			}
 		}
-
-		channel = NewChannel(channelName, transport)
-		s.channels[channelName] = channel
 	}
 
-	return channel
+	return s
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ * get channels
+ * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+func (s *eventHub) GetChannel(channelName string) IChannel {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if channel, isOk := s.channels[channelName]; isOk {
+		return channel
+	}
+
+	return nil
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
