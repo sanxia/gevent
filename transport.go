@@ -34,14 +34,9 @@ func NewDefaultTransport(backCount int) ITransport {
 func (s *defaultTransport) Load() *Event {
 	var event *Event
 
-	if s.backCount == 1 {
-		event = <-s.eventChan
-	} else {
-		select {
-		case eventSource := <-s.eventChan:
-			event = eventSource
-		default:
-		}
+	select {
+	case eventSource := <-s.eventChan:
+		event = eventSource
 	}
 
 	return event
