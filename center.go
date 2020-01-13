@@ -1,5 +1,9 @@
 package gevent
 
+import (
+	"sync"
+)
+
 /* ================================================================================
  * gevent
  * qq group: 582452342
@@ -7,26 +11,39 @@ package gevent
  * author  : 美丽的地球啊 - mliu
  * ================================================================================ */
 type (
+	IEventCenter interface {
+		IEvent
+		GetEventHub() IEventHub
+	}
+
 	eventCenter struct {
 		hub IEventHub
 	}
 )
 
+var (
+	center     IEventCenter
+	centerOnce sync.Once
+)
+
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * 初始化NewEventCenter
+ * 获取IEventCenter实例
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func NewEventCenter(channels ...IChannel) IEvent {
-	evtCenter := &eventCenter{
-		hub: GetEventHub(),
-	}
-
-	for _, channel := range channels {
-		if channel != nil {
-			evtCenter.hub.RegisterChannel(channel)
+func GetEventCenterInstance() IEventCenter {
+	centerOnce.Do(func() {
+		center = &eventCenter{
+			hub: GetEventHubInstance(),
 		}
-	}
+	})
 
-	return evtCenter
+	return center
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ * 获取IEventHub
+ * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+func (s *eventCenter) GetEventHub() IEventHub {
+	return s.hub
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

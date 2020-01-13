@@ -31,7 +31,7 @@ var (
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * get event hub instance
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func GetEventHub() IEventHub {
+func GetEventHubInstance() IEventHub {
 	hubOnce.Do(func() {
 		hub = &eventHub{
 			channels: make(map[string]IChannel, 0),
