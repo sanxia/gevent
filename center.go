@@ -76,7 +76,7 @@ func (s *eventCenter) Subscribe(subscriberHandler ISubscriberHandler, args ...in
 	}
 
 	if argsCount > 1 {
-		priority = args[1]
+		repeat = args[1]
 	}
 
 	if subscriberHandler != nil {

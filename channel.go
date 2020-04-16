@@ -22,8 +22,8 @@ type (
 
 	Channel struct {
 		Name        string     //channel name
-		transport   ITransport //event transport
-		subscribers sync.Map   //subscriber map Collection
+		transport   ITransport //event transport interface
+		subscribers sync.Map   //subscriber map collection
 	}
 )
 
@@ -87,7 +87,7 @@ func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ..
 		}
 	}
 
-	//优先级
+	//priority and maximum repetitions
 	priority, repeat := 0, 0
 	if len(args) > 0 {
 		priority = args[0]
@@ -105,7 +105,7 @@ func (s *Channel) Subscribe(eventName string, eventHandler EventHandler, args ..
 		creationDate: time.Now().UnixNano(),
 	})
 
-	//优先级从高到低降序
+	//from high to low
 	sort.Sort(sort.Reverse(subscribers))
 
 	s.subscribers.Store(eventName, subscribers)
@@ -124,13 +124,16 @@ func (s *Channel) Unsubscribe(eventNames ...string) IChannel {
 		})
 	} else {
 		for eventName := range eventNames {
+
 			s.subscribers.Range(func(key, value interface{}) bool {
 				if eventName == key {
 					s.subscribers.Delete(eventName)
 					return false
 				}
+
 				return true
 			})
+
 		}
 	}
 
@@ -155,30 +158,45 @@ func (s *Channel) dispatchEvent(event *Event) {
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) eventLoop() {
 	for {
-		if event := s.transport.Load(); event != nil {
-			s.subscribers.Range(func(eventName, eventValue interface{}) bool {
-				if subscribers, isOk := eventValue.(SubscriberList); isOk {
-					if eventName == event.Name {
-						go s.eventHandler(event, subscribers)
-					} else if event.IsBroadcast {
-						go s.eventHandler(event, subscribers)
-					}
-				}
+		callback := func(event *Event) error {
+			if event != nil {
+				s.eventCallback(event)
+			} else {
+				time.Sleep(10 * time.Millisecond)
+			}
 
-				return true
-			})
-		} else {
-			time.Sleep(10 * time.Millisecond)
+			return nil
 		}
+
+		s.transport.Load(callback)
 	}
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- * event handling
+ * event handler
+ * subscriber handler is sync notify
+ * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+func (s *Channel) eventCallback(event *Event) {
+	s.subscribers.Range(func(eventName, eventValue interface{}) bool {
+		if subscribers, isOk := eventValue.(SubscriberList); isOk {
+			if event.IsBroadcast {
+				s.eventHandler(event, subscribers)
+			} else if eventName == event.Name {
+				s.eventHandler(event, subscribers)
+			}
+		}
+
+		return true
+	})
+}
+
+/* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ * event handler
  * subscriber handler is sync notify
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *Channel) eventHandler(event *Event, subscribers SubscriberList) {
 	for _, subscriber := range subscribers {
+
 		if event.CreationDate > subscriber.creationDate {
 
 			count := 0

@@ -8,43 +8,50 @@ package gevent
  * ================================================================================ */
 type (
 	ITransport interface {
-		Load() *Event
-		Store(*Event)
+		Load(callback func(*Event) error) error
+		Store(*Event) error
 	}
 
 	defaultTransport struct {
-		eventChan chan *Event //event buffer channel
-		backCount int         //maximum backup buffer
+		eventChan      chan *Event //event buffer channel
+		maxBufferCount int         //maximum backup buffer
 	}
 )
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * initialize the default transport
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func NewDefaultTransport(backCount int) ITransport {
+func NewDefaultTransport(maxBufferCount int) ITransport {
+	if maxBufferCount <= 0 {
+		maxBufferCount = 1
+	}
+
 	return &defaultTransport{
-		eventChan: make(chan *Event, backCount),
-		backCount: backCount,
+		eventChan:      make(chan *Event, maxBufferCount),
+		maxBufferCount: maxBufferCount,
 	}
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * get event data from transport
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *defaultTransport) Load() *Event {
-	var event *Event
+func (s *defaultTransport) Load(callback func(*Event) error) error {
+	for eventSource := range s.eventChan {
+		if callback != nil {
+			callback(eventSource)
+		}
 
-	select {
-	case eventSource := <-s.eventChan:
-		event = eventSource
+		return nil
 	}
 
-	return event
+	return nil
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * set event data to transport
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *defaultTransport) Store(event *Event) {
+func (s *defaultTransport) Store(event *Event) error {
 	s.eventChan <- event
+
+	return nil
 }
