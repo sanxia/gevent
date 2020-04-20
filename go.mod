@@ -1,5 +1,3 @@
-module gevent
+module github.com/sanxia/gevent
 
-//event hubs for golang by mliu
-
-go 1.12
+go 1.14
