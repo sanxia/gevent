@@ -23,7 +23,7 @@ type (
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func NewDefaultTransport(maxBufferCount int) ITransport {
 	if maxBufferCount <= 0 {
-		maxBufferCount = 1
+		maxBufferCount = 64
 	}
 
 	return &defaultTransport{
