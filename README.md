@@ -1,5 +1,6 @@
 # gevent
-golang event hubs publishing and subscriptions
+golang event hub
+event publishing and subscriptions
 
 Example
 =====
