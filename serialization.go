@@ -31,18 +31,18 @@ func NewDefaultSerialization() ISerialization {
  * serialize json
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 func (s *defaultSerialization) Serialize(event *Event) string {
-	eventJson, _ := glib.ToJson(event)
-	return eventJson
+	jsonBody, _ := glib.ToJson(event)
+	return jsonBody
 }
 
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  * deserialize json
  * ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-func (s *defaultSerialization) Deserialize(body string) *Event {
+func (s *defaultSerialization) Deserialize(jsonBody string) *Event {
 	var event *Event
 
-	if len(body) > 0 {
-		glib.FromJson(body, &event)
+	if len(jsonBody) > 0 {
+		glib.FromJson(jsonBody, &event)
 	}
 
 	return event
